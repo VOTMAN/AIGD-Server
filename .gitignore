@@ -1,0 +1,11 @@
+*.ipynb_checkpoints
+referenceGames
+extractedFrames
+*env
+notebooks
+photos
+videoClips
+__pycache__/
+*.pyc
+*.env
+*.db

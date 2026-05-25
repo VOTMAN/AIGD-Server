@@ -1,0 +1,15 @@
+services:
+  backend:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - DATA_DIR=/data
+      - DB_PATH=/data/results.db
+      - CORS_ORIGINS=http://localhost:5173,http://localhost:3000
+      - REQUEST_TIMEOUT=120
+    volumes:
+      - aipro_data:/data
+
+volumes:
+  aipro_data:

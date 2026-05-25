@@ -1,0 +1,13 @@
+benv/
+__pycache__/
+*.pyc
+.git/
+.gitignore
+README.md
+notebooks/
+photos/
+videoClips/
+referenceGames/
+*.ipynb_checkpoints
+.idea/
+.vscode/
