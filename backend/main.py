@@ -8,8 +8,7 @@ import uuid
 from pathlib import Path
 from datetime import datetime, timedelta
 
-
-from fastapi import FastAPI, Form, Request, UploadFile
+from fastapi import BackgroundTasks, FastAPI, Form, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from starlette.status import HTTP_504_GATEWAY_TIMEOUT
@@ -29,9 +28,7 @@ VIDEO_DIR = os.path.join(DATA_DIR, "extractedFrames")
 SAVE_DIR = Path(VIDEO_DIR) / "save"
 
 CORS_ORIGINS = os.environ.get("CORS_ORIGINS", "http://localhost:5173").split(",")
-
 TIME_REGX = r"^(?:[0-5]\d):(?:[0-5]\d)$"
-
 REQUEST_TIMEOUT_ERROR = int(os.environ.get("REQUEST_TIMEOUT", "120"))
 
 referenceEmbeddings = loadReferenceEmbeddings()
@@ -59,6 +56,8 @@ async def cleanupOldFrames():
 
 @app.on_event("startup")
 async def startup():
+    os.makedirs(VIDEO_DIR, exist_ok=True)
+    os.makedirs(SAVE_DIR, exist_ok=True)
     initDB()
     asyncio.create_task(cleanupOldFrames())
 
@@ -68,16 +67,68 @@ async def timeout_middleware(request: Request, call_next):
     start_time = time.time()
     try:
         return await asyncio.wait_for(call_next(request), timeout=REQUEST_TIMEOUT_ERROR)
-
     except asyncio.TimeoutError:
         process_time = time.time() - start_time
         return JSONResponse(
             {
-                "detail": "Request processing time excedeed limit",
+                "detail": "Request processing time exceeded limit",
                 "processing_time": process_time,
             },
             status_code=HTTP_504_GATEWAY_TIMEOUT,
         )
+
+
+def runDetection(temp_id: str, temp_video_path: str, img_save_dir: str, clip_name: str, startTime: str, endTime: str | None):
+    try:
+        result = detectVideo(temp_video_path, referenceEmbeddings, startTime, endTime)
+
+        if result is None:
+            saveResult(PredResults(
+                id=temp_id,
+                status="failed",
+                clip_name=clip_name,
+                prediction="Unknown",
+                confidences=[],
+                frames=[],
+                time_taken=0
+            ))
+            return
+
+        base_parent_dir = os.path.dirname(os.path.dirname(result["influential_frames"][0]))
+        os.makedirs(img_save_dir, exist_ok=True)
+
+        for path in result["influential_frames"]:
+            base_name: str = os.path.splitext(os.path.basename(path))[0].rsplit("_", 1)[0]
+            med_img_name = base_name + "_medium.jpg"
+            shutil.copy2(os.path.join(base_parent_dir, "medium", med_img_name), img_save_dir)
+
+        saveResult(PredResults(
+            id=temp_id,
+            status="done",
+            clip_name=clip_name,
+            prediction=result["prediction"],
+            confidences=result["confidences"],
+            frames=[f"/api/frames/{temp_id}/{f}" for f in os.listdir(img_save_dir)],
+            time_taken=result["time_taken"]
+        ))
+
+    except Exception as e:
+        print("Detection error:", e)
+        saveResult(PredResults(
+            id=temp_id,
+            status="failed",
+            clip_name=clip_name,
+            prediction="Unknown",
+            confidences=[],
+            frames=[],
+            time_taken=0
+        ))
+    finally:
+        if os.path.exists(temp_video_path):
+            os.remove(temp_video_path)
+        extract_dir = os.path.join(VIDEO_DIR, temp_id)
+        if os.path.exists(extract_dir):
+            shutil.rmtree(extract_dir)
 
 
 @app.get("/")
@@ -94,37 +145,35 @@ async def getAllRes():
 @app.get("/api/results/{id}")
 async def getRes(id: str):
     res: PredResults = getResult(id)
+    if res is None:
+        return JSONResponse({"error": "Result not found"}, status_code=404)
     return Response(
         content=res.model_dump_json(),
         media_type="application/json",
-        headers={"Cache-Control": "public, max-age=3600"}
+        headers={"Cache-Control": "no-store"}  # don't cache while processing
     )
 
 
 @app.get("/api/frames/{id}/{filename}")
 async def get_frame(id: str, filename: str):
-
     requested_path = (SAVE_DIR / id / filename).resolve()
 
-    # Ensure requested path stays inside SAVE_DIR
     if not str(requested_path).startswith(str(SAVE_DIR.resolve())):
         return {"error": "Invalid path"}
 
-    # Ensure file exists
     if not requested_path.exists():
         return {"error": "Frame not found, Rerun Detection"}
 
     return FileResponse(
-        requested_path, 
-        media_type="image/jpeg", 
-        headers={
-        "Cache-Control": "public, max-age=86400"
-        }
+        requested_path,
+        media_type="image/jpeg",
+        headers={"Cache-Control": "public, max-age=86400"}
     )
 
 
 @app.post("/api/upload/clip")
 async def predClip(
+    background_tasks: BackgroundTasks,
     file: UploadFile,
     startTime: str | None = Form("00:00"),
     endTime: str | None = Form(None),
@@ -143,55 +192,25 @@ async def predClip(
         return {"error": "Invalid endTime format. Use MM:SS"}
 
     if startTime == endTime:
-        print("Error: Start time and end time cannot be equal")
         return {"error": "Start and end times are equal"}
 
     with open(temp_video_path, "wb") as f:
         shutil.copyfileobj(file.file, f)
 
-    try:
-        # print(temp_video_path, startTime, endTime)
-        result = detectVideo(temp_video_path, referenceEmbeddings, startTime, endTime)
+    # Save a placeholder so the frontend can find it immediately
+    saveResult(PredResults(
+        id=temp_id,
+        status="processing",
+        clip_name=file.filename,
+        prediction="",
+        confidences=[],
+        frames=[],
+        time_taken=0
+    ))
 
-        if result is None:
-            return {"error": "Could not detect game"}
+    background_tasks.add_task(runDetection, temp_id, temp_video_path, img_save_dir, file.filename, startTime, endTime)
 
-        base_parent_dir = os.path.dirname(
-            os.path.dirname(result["influential_frames"][0])
-        )
-        os.makedirs(img_save_dir, exist_ok=True)
-
-        for path in result["influential_frames"]:
-            print("Img Path: ", path)
-            base_name: str = os.path.splitext(os.path.basename(path))[0].rsplit("_", 1)[
-                0
-            ]
-            med_img_name = base_name + "_medium.jpg"
-            shutil.copy2(
-                os.path.join(base_parent_dir, "medium", med_img_name), img_save_dir
-            )
-
-        res = saveResult(PredResults(
-            id=temp_id,
-            clip_name=file.filename,
-            prediction=result["prediction"],
-            confidences=result["confidences"],
-            frames=[f"/api/frames/{temp_id}/{f}" for f in os.listdir(img_save_dir)],
-            time_taken=result["time_taken"]
-        ))
-
-        print(res)
-        return {"id": temp_id}
-
-    except Exception as e:
-        print(e)
-        return {"error": str(e)}
-
-    finally:
-        os.remove(temp_video_path)
-        extract_dir = os.path.join(VIDEO_DIR, temp_id)
-        if os.path.exists(extract_dir):
-            shutil.rmtree(extract_dir)
+    return {"id": temp_id}
 
 
 @app.post("/api/upload/frame")

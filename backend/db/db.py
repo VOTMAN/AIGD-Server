@@ -13,7 +13,13 @@ def initDB():
 def saveResult(result: PredResults):
     try:
         with Session(engine) as session:
-            session.add(result)
+            existing = session.get(PredResults, result.id)
+            if existing:
+                for key, value in result.model_dump().items():
+                    setattr(existing, key, value)
+                session.add(existing)
+            else:
+                session.add(result)
             session.commit()
     except Exception as e:
         print(e)

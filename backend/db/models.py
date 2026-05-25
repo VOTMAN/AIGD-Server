@@ -4,6 +4,7 @@ from sqlmodel import SQLModel, Field, Column, JSON, TIMESTAMP, text
 
 class PredResults(SQLModel, table=True):
     id: str | None = Field(default=None, primary_key = True)
+    status: str = Field(default="processing")
     clip_name: str
     prediction: str
     confidences: List[Tuple[str, float]] = Field(
