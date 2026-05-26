@@ -66,7 +66,7 @@ def detectVideo(path, referenceEmbeddings, startTime="00:00", endTime=None):
     print("VIDEO DETECTION: ")
     if not os.path.exists(path):
         print("Video does not exist.\n")
-        return
+        return { "error": "Video does not exist" }
 
     videoDuration = getVideoDetails(path)[2]
 
@@ -79,13 +79,13 @@ def detectVideo(path, referenceEmbeddings, startTime="00:00", endTime=None):
 
     if startSeconds >= videoDuration:
         print("Invalid start time")
-        return
+        return {"error": "Invalid start time"}
 
     if endSeconds > videoDuration:
         endSeconds = int(videoDuration)
 
-    if (endSeconds - startSeconds) > 120:
-        endSeconds = startSeconds + 120
+    if (endSeconds - startSeconds) > 90:
+        endSeconds = startSeconds + 90
         print(f"-> Clip too long, trimmed to {secondsToTime(endSeconds)}")
 
     endTime = secondsToTime(endSeconds)
@@ -104,7 +104,7 @@ def detectVideo(path, referenceEmbeddings, startTime="00:00", endTime=None):
 
     if frameFolder is None:
         print("Frame extraction failed.\n")
-        return
+        return {"error" : "Frame extraction failed."}
 
     smallFolder = os.path.join(frameFolder, "small")
 
@@ -118,7 +118,7 @@ def detectVideo(path, referenceEmbeddings, startTime="00:00", endTime=None):
         framePath = os.path.join(smallFolder, frameFile)
 
         result = detectGameTopK(framePath, referenceEmbeddings)
-        # print(result, '\n')
+
         if result["prediction"] == "Unknown Game":
             continue
 
@@ -187,7 +187,7 @@ def detectVideo(path, referenceEmbeddings, startTime="00:00", endTime=None):
 def detectFrame(path, referenceEmbeddings):
     if not os.path.exists(path):
         print("Image does not exist.\n")
-        return
+        return {"error": "Image not found."}
     result = detectGameTopK(path, referenceEmbeddings)
     print("IMAGE DETECTION:\n")
     print("\nGame: ", result["prediction"])

@@ -3,7 +3,9 @@ import os
 from .models import PredResults
 from sqlmodel import Session, SQLModel, create_engine, select
 
-DB_PATH = os.environ.get("DB_PATH", "/data/results.db")
+BASE_DIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+DB_PATH = os.environ.get("DB_PATH", os.path.join(BASE_DIR, "data", "results.db"))
+
 SQLLITE_URL = f"sqlite:///{DB_PATH}"
 engine = create_engine(SQLLITE_URL, connect_args={"check_same_thread": False})
 

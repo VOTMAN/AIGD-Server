@@ -23,7 +23,13 @@ from utils import detectFrame, detectVideo, loadReferenceEmbeddings
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
-DATA_DIR = os.environ.get("DATA_DIR", "/data")
+DATA_DIR = os.environ.get(
+    "DATA_DIR",
+    os.path.join(BASE_DIR, "data")
+)
+
+os.makedirs(DATA_DIR, exist_ok=True)
+
 VIDEO_DIR = os.path.join(DATA_DIR, "extractedFrames")
 SAVE_DIR = Path(VIDEO_DIR) / "save"
 
@@ -56,9 +62,9 @@ async def cleanupOldFrames():
 
 @app.on_event("startup")
 async def startup():
+    initDB()
     os.makedirs(VIDEO_DIR, exist_ok=True)
     os.makedirs(SAVE_DIR, exist_ok=True)
-    initDB()
     asyncio.create_task(cleanupOldFrames())
 
 
@@ -81,6 +87,9 @@ async def timeout_middleware(request: Request, call_next):
 def runDetection(temp_id: str, temp_video_path: str, img_save_dir: str, clip_name: str, startTime: str, endTime: str | None):
     try:
         result = detectVideo(temp_video_path, referenceEmbeddings, startTime, endTime)
+
+        if result.get("error"):
+            raise Exception({result["error"]})
 
         if result is None:
             saveResult(PredResults(
@@ -222,6 +231,7 @@ async def predFrame(file: UploadFile):
         shutil.copyfileobj(file.file, f)
     try:
         result = detectFrame(temp_frame_path, referenceEmbeddings)
+
         return {"prediction": result[0], "confidence": result[1]}
     except Exception as e:
         print(e)
