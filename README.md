@@ -2,7 +2,7 @@
 
 Detects which video game is being played in a video clip using AI-powered image embeddings. Drop in a clip or a screenshot, get the game name.
 
-Currently supports **CS2, Elden Ring, Hollow Knight, and Valorant**, with pre-built embeddings shipped directly in the repo.
+Currently supports **CS2, Elden Ring, Hollow Knight Series (Hollow Knight and HK Silksong), Apex Legends, Valorant, Cuphead and The Finals**, with pre-built embeddings shipped directly in the repo.
 
 ---
 
