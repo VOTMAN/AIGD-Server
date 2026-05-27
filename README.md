@@ -65,9 +65,69 @@ Pre-built embeddings for all supported games are shipped in `cachedEmbeddings/re
 │   └── refEmbed.pkl         # Pre-built embeddings (shipped with repo)
 ├── extractedFrames/         # Auto-generated during detection
 │   └── save/                # Persistent influential frames served to the frontend (The server auto delete after 2 hours)
-└── requirements.txt
-
+├── requirements.txt
+└── frontend/                # SvelteKit web UI
+    ├── src/
+    │   ├── lib/
+    │   │   ├── assets/
+    │   │   │   └── heroPic.png
+    │   │   ├── components/
+    │   │   │   ├── Navbar.svelte
+    │   │   │   └── ThemeToggle.svelte
+    │   │   └── types.ts         # Shared TypeScript types (DetectionResult)
+    │   │   
+    │   ├── routes/
+    │   │   ├── upload/
+    │   │   │   ├── clip/
+    │   │   │   │   └── +page.svelte
+    │   │   │   └── frame/
+    │   │   │       └── +page.svelte
+    │   │   ├── results/
+    │   │   │   └── [id]/
+    │   │   │       ├── +page.svelte
+    │   │   │       └── +page.server.ts
+    │   │   ├── history/
+    │   │   │   ├── +page.svelte
+    │   │   │   └── +page.ts
+    │   │   ├── +layout.svelte
+    │   │   └── +page.svelte
+    │   ├── app.html
+    │   ├── app.d.ts
+    │   └── app.css
+    └── static/
 ```
+
+---
+
+## Model Performance
+
+Evaluated on a held-out test set of frames across all supported games, plus a negative set of frames from unsupported games to test rejection ability.
+
+### Results
+
+**Overall Accuracy: 79.22%** | **Unknown Rate: 19.23%** | **False Positive Rate: 7.69%**
+
+| Game | Precision | Recall | F1 |
+|---|---|---|---|
+| CS2 | 0.92 | 0.94 | 0.93 |
+| Hollow Knight Series | 0.99 | 0.96 | 0.97 |
+| The Finals | 0.94 | 0.79 | 0.86 |
+| Valorant | 1.00 | 0.41 | 0.58 |
+| Cuphead | 0.98 | 0.86 | 0.91 |
+| Elden Ring | 1.00 | 0.93 | 0.96 |
+
+### Confusion Matrix
+
+![Confusion Matrix](assets/confusion_matrix.png)
+
+### Notes
+
+- **Apex Legends** hasn't been tested yet
+- **Valorant** has perfect precision (1.00) but low recall (0.41) — the model only predicts Valorant when highly confident. This is due to limited map coverage in the reference library and will improve with more diverse reference screenshots.
+- **The Finals** unknown rate is similarly caused by missing map/mode coverage in the reference library.
+- **False positive rate** measures how often frames from unsupported games are incorrectly classified as a known game. At 7.69% the rejection threshold is working well.
+- Hollow Knight and Hollow Knight: Silksong are treated as a single class (`Hollow_Knight_Series`) due to near-identical visual styles shared between the two games.
+- The **unknown rate** is largely driven by Valorant — fix Valorant reference coverage and overall accuracy is expected to exceed 85%.
 
 ---
 
@@ -88,7 +148,14 @@ source myenv/bin/activate       # Windows: myenv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-**3. (Optional) Build your own reference embeddings**
+**3. Install frontend dependencies**
+
+```bash
+cd frontend
+npm install
+```
+
+**4. (Optional) Build your own reference embeddings**
 
 If you want to add your own games, create a `referenceGames/` folder at the project root and populate it with screenshots:
 
@@ -215,7 +282,6 @@ Retrieve a stored detection result by ID.
 ```json
 {
   "id": "98a0683c-9ad5-40d9-bbb4-b6fe1d5d7c70",
-  "status": "success"
   "clip_name": "Valorant.mp4",
   "prediction": "Valorant",
   "confidences": [["Valorant", 100.0]],
@@ -243,6 +309,29 @@ Retrieve an extracted frame image by detection ID and filename. Used by the fron
 
 ---
 
+## Usage — Web UI
+
+Run the backend and frontend simultaneously:
+
+```bash
+# Terminal 1 — backend
+cd backend
+uvicorn main:app --reload
+
+# Terminal 2 — frontend
+cd frontend
+npm run dev
+```
+
+Then open `http://localhost:5173` in your browser.
+
+- Upload a video clip via `/upload/clip` — the detected game, confidence breakdown, and most influential frames are shown on the results page.
+- Upload a single screenshot via `/upload/frame` for quick single-frame detection.
+- Browse all past detections on the `/history` page.
+- Theme (light/dark) is persisted across sessions via `localStorage`.
+
+---
+
 ## Requirements
 
 - Python 3.12
@@ -261,10 +350,21 @@ Install Python dependencies:
 ```bash
 pip install -r requirements.txt
 ```
+
+Install frontend dependencies:
+
+```bash
+cd frontend && npm install
+```
+
 ---
 
 ## Future Plans
 
+- [x] Support for single image/screenshot detection
+- [x] Confidence score display in output
+- [x] Results page with confidence breakdown and frame viewer
+- [x] Detection history page
 - [ ] Deduplication — reuse results for previously seen clips
 - [ ] Event detection within clips (kills, deaths, aces, explosions, etc.)
 - [ ] Expand shipped reference library with more games
