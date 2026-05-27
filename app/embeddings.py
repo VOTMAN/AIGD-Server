@@ -1,4 +1,5 @@
 import os
+import pickle
 import torch
 import open_clip
 from open_clip import tokenizer
@@ -9,6 +10,8 @@ print("Torch version:", torch.__version__)
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 REF_DIR = os.path.join(BASE_DIR, "referenceGames")
+CACHE_DIR = os.path.join(BASE_DIR, "cachedEmbeddings")
+os.makedirs(CACHE_DIR, exist_ok=True)
 
 # load the model
 model, _, preprocess = open_clip.create_model_and_transforms(
@@ -55,16 +58,48 @@ def buildReferenceEmbeddings(refFolder = REF_DIR):
             })
     
     
-    for game, embeddings in referenceEmbeddings.items():
+    # for game, embeddings in referenceEmbeddings.items():
         
-        stacked = torch.stack([
-            item["embedding"]
-            for item in embeddings
-        ])
+    #     stacked = torch.stack([
+    #         item["embedding"]
+    #         for item in embeddings
+    #     ])
         
-        meanEmbedding = torch.mean(stacked, dim = 0)
+    #     meanEmbedding = torch.mean(stacked, dim = 0)
         
-        meanEmbedding /= meanEmbedding.norm(dim=-1, keepdim=True)
-        gameMeanEmbeddings[game] = meanEmbedding
+    #     meanEmbedding /= meanEmbedding.norm(dim=-1, keepdim=True)
+    #     gameMeanEmbeddings[game] = meanEmbedding
 
     return referenceEmbeddings, gameMeanEmbeddings
+
+def cacheEmbeddings(embeddings):
+    # print(embeddings)
+
+    with open(os.path.join(CACHE_DIR, "refEmbed.pkl"), "wb") as f:
+        pickle.dump(embeddings, f, protocol=pickle.HIGHEST_PROTOCOL)
+
+    print("Cached Reference Embeddings")
+
+
+def loadReferenceEmbeddings():
+    if os.path.exists(os.path.join(CACHE_DIR, "refEmbed.pkl")):
+        print(
+            "-> Using cached Embedding.\n-> Delete cache if you want to create new embeddings"
+        )
+
+        with open(os.path.join(CACHE_DIR, "refEmbed.pkl"), "rb") as f:
+            referenceEmbeddings = pickle.load(f)
+
+        print("-> Loaded Successfully")
+
+    else:
+        # Build reference embeddings once
+        print("-> No cache, building embeddings\n")
+
+        referenceEmbeddings, _ = buildReferenceEmbeddings()
+
+        cacheEmbeddings(referenceEmbeddings)
+
+        print("-> Saved embeddings to cache")
+
+    return referenceEmbeddings

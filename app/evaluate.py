@@ -9,7 +9,7 @@ from sklearn.metrics import (
     ConfusionMatrixDisplay
 )
 
-from exp_detector import detectGameTopK
+from detector import detectGameTopK
 from embeddings import loadReferenceEmbeddings
 
 UNKNOWN_LABEL = "Unknown Game"

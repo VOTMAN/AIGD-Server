@@ -1,48 +1,15 @@
 import os
-import pickle
+from collections import Counter
 from time import time
 
-from collections import Counter
-from detector import detectGameTopK
 from embeddings import buildReferenceEmbeddings
 from video import getVideoDetails, videoToFrames
+
+from detector import detectGameTopK
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 CACHE_DIR = os.path.join(BASE_DIR, "cachedEmbeddings")
 os.makedirs(CACHE_DIR, exist_ok=True)
-
-
-def cacheEmbeddings(embeddings):
-    # print(embeddings)
-
-    with open(os.path.join(CACHE_DIR, "refEmbed.pkl"), "wb") as f:
-        pickle.dump(embeddings, f, protocol=pickle.HIGHEST_PROTOCOL)
-
-    print("Cached Reference Embeddings")
-
-
-def loadReferenceEmbeddings():
-    if os.path.exists(os.path.join(CACHE_DIR, "refEmbed.pkl")):
-        print(
-            "-> Using cached Embedding.\n-> Delete cache if you want to create new embeddings"
-        )
-
-        with open(os.path.join(CACHE_DIR, "refEmbed.pkl"), "rb") as f:
-            referenceEmbeddings = pickle.load(f)
-
-        print("-> Loaded Successfully")
-
-    else:
-        # Build reference embeddings once
-        print("-> No cache, building embeddings\n")
-
-        referenceEmbeddings, _ = buildReferenceEmbeddings()
-
-        cacheEmbeddings(referenceEmbeddings)
-
-        print("-> Saved embeddings to cache")
-
-    return referenceEmbeddings
 
 
 def timeToSeconds(time: str):
@@ -66,7 +33,7 @@ def detectVideo(path, referenceEmbeddings, startTime="00:00", endTime=None):
     print("VIDEO DETECTION: ")
     if not os.path.exists(path):
         print("Video does not exist.\n")
-        return { "error": "Video does not exist" }
+        return {"error": "Video does not exist"}
 
     videoDuration = getVideoDetails(path)[2]
 
@@ -104,7 +71,7 @@ def detectVideo(path, referenceEmbeddings, startTime="00:00", endTime=None):
 
     if frameFolder is None:
         print("Frame extraction failed.\n")
-        return {"error" : "Frame extraction failed."}
+        return {"error": "Frame extraction failed."}
 
     smallFolder = os.path.join(frameFolder, "small")
 
@@ -180,7 +147,7 @@ def detectVideo(path, referenceEmbeddings, startTime="00:00", endTime=None):
         "prediction": finalPrediction,
         "confidences": sortedConfidences,
         "influential_frames": influentialFrames,
-        "time_taken": processing_time
+        "time_taken": processing_time,
     }
 
 

@@ -3,8 +3,10 @@ import sys
 from utils import (
     detectFrame, 
     detectVideo, 
-    loadReferenceEmbeddings
-)
+)    
+
+from embeddings import loadReferenceEmbeddings
+
 
 referenceEmbeddings = loadReferenceEmbeddings()
 
