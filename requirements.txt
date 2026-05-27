@@ -11,3 +11,6 @@ uvicorn
 python-multipart
 starlette
 sqlmodel
+
+matplotlib
+scikit-learn
