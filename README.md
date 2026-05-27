@@ -51,50 +51,23 @@ Pre-built embeddings for all supported games are shipped in `cachedEmbeddings/re
 ```
 .
 ├── app/
-│   ├── main.py              # CLI entry point + shared detectVideo / detectFrame functions
-│   ├── detector.py          # Frame-level game detection
-│   ├── embeddings.py        # OpenCLIP model + embedding functions
-│   ├── video.py             # Video frame extraction
-│   └── utils.py             # Embedding cache helpers + shared detection wrappers
+│   ├── main.py                 # CLI entry point + shared detectVideo / detectFrame functions
+│   ├── detector.py             # Frame-level game detection
+│   ├── embeddings.py           # OpenCLIP model + embedding functions
+│   ├── video.py                # Video frame extraction
+│		├── evaluate.py		          # Test model performace with testing directory containing folders (Game Names) with their screenshots or pictures
+│   └── utils.py                # Embedding cache helpers + shared detection wrappers
 ├── backend/
-│   ├── main.py              # FastAPI server
+│   ├── main.py                 # FastAPI server
 │   └──db/
 │      ├── db.py                # SQLite database helpers (init, save, get, getAll)
 │      └── models.py            # SQLModel table definitions (PredResults)
 ├── cachedEmbeddings/
-│   └── refEmbed.pkl         # Pre-built embeddings (shipped with repo)
-├── extractedFrames/         # Auto-generated during detection
-│   └── save/                # Persistent influential frames served to the frontend (The server auto delete after 2 hours)
-├── requirements.txt
-└── frontend/                # SvelteKit web UI
-    ├── src/
-    │   ├── lib/
-    │   │   ├── assets/
-    │   │   │   └── heroPic.png
-    │   │   ├── components/
-    │   │   │   ├── Navbar.svelte
-    │   │   │   └── ThemeToggle.svelte
-    │   │   └── types.ts         # Shared TypeScript types (DetectionResult)
-    │   │   
-    │   ├── routes/
-    │   │   ├── upload/
-    │   │   │   ├── clip/
-    │   │   │   │   └── +page.svelte
-    │   │   │   └── frame/
-    │   │   │       └── +page.svelte
-    │   │   ├── results/
-    │   │   │   └── [id]/
-    │   │   │       ├── +page.svelte
-    │   │   │       └── +page.server.ts
-    │   │   ├── history/
-    │   │   │   ├── +page.svelte
-    │   │   │   └── +page.ts
-    │   │   ├── +layout.svelte
-    │   │   └── +page.svelte
-    │   ├── app.html
-    │   ├── app.d.ts
-    │   └── app.css
-    └── static/
+│   └── refEmbed.pkl             # Pre-built embeddings (shipped with repo)
+├── data
+│		└── extractedFrames/         # Auto-generated during detection. Contains cli detection and temporarily the backend before they are deleted
+│   		└── save/                # Persistent influential frames served to the frontend (The server auto delete after 2 hours)
+└── requirements.txt
 ```
 
 ---
@@ -148,14 +121,7 @@ source myenv/bin/activate       # Windows: myenv\Scripts\activate
 pip install -r requirements.txt
 ```
 
-**3. Install frontend dependencies**
-
-```bash
-cd frontend
-npm install
-```
-
-**4. (Optional) Build your own reference embeddings**
+**3. (Optional) Build your own reference embeddings**
 
 If you want to add your own games, create a `referenceGames/` folder at the project root and populate it with screenshots:
 
@@ -309,29 +275,6 @@ Retrieve an extracted frame image by detection ID and filename. Used by the fron
 
 ---
 
-## Usage — Web UI
-
-Run the backend and frontend simultaneously:
-
-```bash
-# Terminal 1 — backend
-cd backend
-uvicorn main:app --reload
-
-# Terminal 2 — frontend
-cd frontend
-npm run dev
-```
-
-Then open `http://localhost:5173` in your browser.
-
-- Upload a video clip via `/upload/clip` — the detected game, confidence breakdown, and most influential frames are shown on the results page.
-- Upload a single screenshot via `/upload/frame` for quick single-frame detection.
-- Browse all past detections on the `/history` page.
-- Theme (light/dark) is persisted across sessions via `localStorage`.
-
----
-
 ## Requirements
 
 - Python 3.12
@@ -344,6 +287,8 @@ Then open `http://localhost:5173` in your browser.
 - uvicorn
 - python-multipart
 - sqlmodel
+- scikit-learn
+- matplotlib
 
 Install Python dependencies:
 
