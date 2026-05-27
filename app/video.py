@@ -2,7 +2,7 @@ import cv2
 import os
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-DATA_DIR = os.environ.get("DATA_DIR", BASE_DIR)
+DATA_DIR = os.environ.get("DATA_DIR", os.path.join(BASE_DIR, "data"))
 
 VIDEO_DIR = os.path.join(DATA_DIR, "extractedFrames")
 os.makedirs(VIDEO_DIR, exist_ok=True)
