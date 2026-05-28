@@ -8,7 +8,7 @@ from utils import (
 from embeddings import loadReferenceEmbeddings
 
 
-referenceEmbeddings = loadReferenceEmbeddings()
+referenceEmbeddings, _ = loadReferenceEmbeddings()
 
 
 def main():

@@ -2,7 +2,6 @@ import os
 from collections import Counter
 from time import time
 
-from embeddings import buildReferenceEmbeddings
 from video import getVideoDetails, videoToFrames
 
 from detector import detectGameTopK

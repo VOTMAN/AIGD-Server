@@ -19,7 +19,8 @@ from db.db import initDB, saveResult, getResult, getAllResults
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../app"))
 sys.path.append(parent_dir)
 
-from utils import detectFrame, detectVideo, loadReferenceEmbeddings
+from utils import detectFrame, detectVideo
+from embeddings import loadReferenceEmbeddings
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -37,7 +38,7 @@ CORS_ORIGINS = os.environ.get("CORS_ORIGINS", "http://localhost:5173").split(","
 TIME_REGX = r"^(?:[0-5]\d):(?:[0-5]\d)$"
 REQUEST_TIMEOUT_ERROR = int(os.environ.get("REQUEST_TIMEOUT", "120"))
 
-referenceEmbeddings = loadReferenceEmbeddings()
+referenceEmbeddings= loadReferenceEmbeddings()
 
 app = FastAPI()
 
