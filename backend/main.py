@@ -15,13 +15,13 @@ from starlette.status import HTTP_504_GATEWAY_TIMEOUT
 
 from db.models import PredResults
 from db.db import initDB, saveResult, getResult, getAllResults
+from db.vec_db import addEmbedding, getEmbeddings
 
 parent_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), "../app"))
 sys.path.append(parent_dir)
 
 from utils import detectFrame, detectVideo
 from embeddings import loadReferenceEmbeddings
-from vec_db import addEmbedding, getEmbeddings
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
