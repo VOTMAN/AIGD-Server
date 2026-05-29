@@ -85,6 +85,7 @@ def detectVideo(path, referenceEmbeddings, startTime="00:00", endTime=None):
 
         result = detectGameTopK(framePath, referenceEmbeddings)
 
+        # print(result["vote_strength"])
         if result["prediction"] == "Unknown Game":
             continue
 
@@ -93,7 +94,7 @@ def detectVideo(path, referenceEmbeddings, startTime="00:00", endTime=None):
             {
                 "frame": framePath,
                 "prediction": result["prediction"],
-                "confidence": result["confidence"],
+                "confidence": result["vote_strength"],
             }
         )
 
@@ -146,6 +147,7 @@ def detectVideo(path, referenceEmbeddings, startTime="00:00", endTime=None):
         "prediction": finalPrediction,
         "confidences": sortedConfidences,
         "influential_frames": influentialFrames,
+        "frames_for_embedding": [item["frame"] for item in sortedFrames[:10]],
         "time_taken": processing_time,
     }
 

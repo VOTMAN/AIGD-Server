@@ -20,7 +20,7 @@ model, _, preprocess = open_clip.create_model_and_transforms(
 )
 # model.eval()
 
-tokenizer = open_clip.get_tokenizer('ViT-B-32')
+# tokenizer = open_clip.get_tokenizer('ViT-B-32')
 
 def getImgEmbeddings(imgPath):
     try:
@@ -35,10 +35,20 @@ def getImgEmbeddings(imgPath):
     with torch.no_grad():
         features = model.encode_image(image)
     
-    # Normalize
     features /= features.norm(dim=-1, keepdim=True)
 
     return features.squeeze(0)
+
+def getTextEmbeddings(text):
+
+    processed_text = tokenizer.tokenize(text)
+
+    with torch.no_grad():
+        features = model.encode_text(processed_text)
+    
+    features /= features.norm(dim=-1, keepdim=True)
+
+    return features
 
 
 def buildReferenceEmbeddings(refFolder = REF_DIR):
@@ -71,6 +81,33 @@ def buildReferenceEmbeddings(refFolder = REF_DIR):
     #     gameMeanEmbeddings[game] = meanEmbedding
 
     return referenceEmbeddings, gameMeanEmbeddings
+
+def buildClipEmbeddings(framePaths):
+    embeddings = []
+
+    for frame in framePaths:
+        emb = getImgEmbeddings(frame)
+
+        if emb is None:
+            print(f"Failed embedding: {frame}")
+            continue
+
+        embeddings.append(emb)
+
+    if len(embeddings) == 0:
+        return None
+    
+    clipEmbeddings = torch.mean(
+        torch.stack(embeddings),
+        dim = 0
+    )
+
+    clipEmbeddings /= clipEmbeddings.norm(
+        dim = -1,
+        keepdim=True
+    )
+
+    return clipEmbeddings
 
 def cacheEmbeddings(embeddings):
     # print(embeddings)

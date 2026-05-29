@@ -21,6 +21,7 @@ sys.path.append(parent_dir)
 
 from utils import detectFrame, detectVideo
 from embeddings import loadReferenceEmbeddings
+from vec_db import addEmbedding, getEmbeddings
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
@@ -38,7 +39,7 @@ CORS_ORIGINS = os.environ.get("CORS_ORIGINS", "http://localhost:5173").split(","
 TIME_REGX = r"^(?:[0-5]\d):(?:[0-5]\d)$"
 REQUEST_TIMEOUT_ERROR = int(os.environ.get("REQUEST_TIMEOUT", "120"))
 
-referenceEmbeddings= loadReferenceEmbeddings()
+referenceEmbeddings = loadReferenceEmbeddings()
 
 app = FastAPI()
 
@@ -84,6 +85,34 @@ async def timeout_middleware(request: Request, call_next):
             status_code=HTTP_504_GATEWAY_TIMEOUT,
         )
 
+def copyFrames(frame_paths, base_parent_dir, img_save_dir):
+    copied_urls = []
+
+    for path in frame_paths:
+        base_name = (
+            os.path.splitext(os.path.basename(path))[0]
+            .rsplit("_", 1)[0]
+        )
+
+        med_img_name = base_name + "_medium.jpg"
+
+        src = os.path.join(
+            base_parent_dir,
+            "medium",
+            med_img_name
+        )
+
+        dst = os.path.join(
+            img_save_dir,
+            med_img_name
+        )
+
+        if not os.path.exists(dst):
+            shutil.copy2(src, dst)
+
+        copied_urls.append(med_img_name)
+
+    return copied_urls
 
 def runDetection(temp_id: str, temp_video_path: str, img_save_dir: str, clip_name: str, startTime: str, endTime: str | None):
     try:
@@ -107,10 +136,27 @@ def runDetection(temp_id: str, temp_video_path: str, img_save_dir: str, clip_nam
         base_parent_dir = os.path.dirname(os.path.dirname(result["influential_frames"][0]))
         os.makedirs(img_save_dir, exist_ok=True)
 
-        for path in result["influential_frames"]:
-            base_name: str = os.path.splitext(os.path.basename(path))[0].rsplit("_", 1)[0]
-            med_img_name = base_name + "_medium.jpg"
-            shutil.copy2(os.path.join(base_parent_dir, "medium", med_img_name), img_save_dir)
+        display_frames = copyFrames(
+            result["influential_frames"],
+            base_parent_dir,
+            img_save_dir
+        )
+
+        embedding_frames = copyFrames(
+            result["frames_for_embedding"],
+            base_parent_dir,
+            img_save_dir
+        )
+
+        frame_urls = [
+            f"/api/frames/{temp_id}/{f}"
+            for f in display_frames
+        ]
+
+        embed_frame_urls = [
+            f"/api/frames/{temp_id}/{f}"
+            for f in embedding_frames
+        ]
 
         saveResult(PredResults(
             id=temp_id,
@@ -118,9 +164,11 @@ def runDetection(temp_id: str, temp_video_path: str, img_save_dir: str, clip_nam
             clip_name=clip_name,
             prediction=result["prediction"],
             confidences=result["confidences"],
-            frames=[f"/api/frames/{temp_id}/{f}" for f in os.listdir(img_save_dir)],
+            frames=frame_urls,
             time_taken=result["time_taken"]
         ))
+
+        addEmbedding(embed_frame_urls, clip_name, result["prediction"], temp_id)
 
     except Exception as e:
         print("Detection error:", e)
@@ -145,6 +193,12 @@ def runDetection(temp_id: str, temp_video_path: str, img_save_dir: str, clip_nam
 async def read_root():
     return {"Hello": "World"}
 
+@app.get("/api/search/{query}")
+async def searchVecDB(query: str):
+    res = getEmbeddings(query)
+    # print(res)
+    return res
+
 
 @app.get("/api/results/all")
 async def getAllRes():
@@ -165,7 +219,7 @@ async def getRes(id: str):
 
 
 @app.get("/api/frames/{id}/{filename}")
-async def get_frame(id: str, filename: str):
+async def getFrame(id: str, filename: str):
     requested_path = (SAVE_DIR / id / filename).resolve()
 
     if not str(requested_path).startswith(str(SAVE_DIR.resolve())):

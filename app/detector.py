@@ -20,7 +20,7 @@ def detectGameTopK(queryImgPath, referenceEmbeddings):
 
     similarities.sort(key=lambda x: x["score"], reverse=True)
 
-    TOPK = 5
+    TOPK = 10
     topMatches = similarities[:TOPK]
 
     if len(topMatches) < 2:
@@ -60,8 +60,15 @@ def detectGameTopK(queryImgPath, referenceEmbeddings):
 
     votes = Counter()
 
-    for match in topMatches:
-        votes[match["game"]] += match["score"]
+    for match in topMatches[:5]:
+        # votes[match["game"]] += match["score"]
+        game = match["game"]
+        score = match["score"]
+
+        if game not in votes:
+            votes[game] = score
+        else:
+            votes[game] += score * 0.25
 
     if not bool(votes):
         return {"prediction": "Unknown Game"}
@@ -71,5 +78,6 @@ def detectGameTopK(queryImgPath, referenceEmbeddings):
     return {
         "prediction": predictedGame,
         "confidence": topMatches[0]["score"],
+        "vote_strength": votes[predictedGame],
         "top_matches": topMatches,
     }
