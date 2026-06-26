@@ -6,7 +6,7 @@ from utils import (
     detectVideo,
 )
 
-referenceEmbeddings, _ = loadReferenceEmbeddings()
+referenceEmbeddings = loadReferenceEmbeddings()
 
 
 def main():

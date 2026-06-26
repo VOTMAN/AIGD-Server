@@ -15,7 +15,7 @@ os.makedirs(CACHE_DIR, exist_ok=True)
 
 # load the model
 model, _, preprocess = open_clip.create_model_and_transforms(
-    'ViT-B-32', 
+    'ViT-B-32',
     pretrained='laion2b_s34b_b79k'
 )
 # model.eval()
@@ -27,25 +27,26 @@ def getImgEmbeddings(imgPath):
         image = preprocess(
             Image.open(imgPath)
         ).unsqueeze(0)
-    
+
     except FileNotFoundError:
         print("No such image exitsts")
         return
-    
+
     with torch.no_grad():
         features = model.encode_image(image)
-    
+
     features /= features.norm(dim=-1, keepdim=True)
 
     return features.squeeze(0)
 
 def getTextEmbeddings(text):
 
-    processed_text = tokenizer.tokenize(text)
+    prompt = f"a screenshot of {text}, gameplay"
+    processed_text = tokenizer.tokenize(prompt)
 
     with torch.no_grad():
         features = model.encode_text(processed_text)
-    
+
     features /= features.norm(dim=-1, keepdim=True)
 
     return features
@@ -54,60 +55,33 @@ def getTextEmbeddings(text):
 def buildReferenceEmbeddings(refFolder = REF_DIR):
     referenceEmbeddings = defaultdict(list)
     gameMeanEmbeddings = {}
-    
+
     for game in os.listdir(refFolder):
         gameFolder = os.path.join(refFolder, game)
-    
+
         for imgFile in os.listdir(gameFolder):
             imgPath = os.path.join(gameFolder, imgFile)
             embedding = getImgEmbeddings(imgPath)
-    
+
             referenceEmbeddings[game].append({
                 "embedding": embedding,
                 "path": imgPath
             })
-    
-    
+
+
     # for game, embeddings in referenceEmbeddings.items():
-        
+
     #     stacked = torch.stack([
     #         item["embedding"]
     #         for item in embeddings
     #     ])
-        
+
     #     meanEmbedding = torch.mean(stacked, dim = 0)
-        
+
     #     meanEmbedding /= meanEmbedding.norm(dim=-1, keepdim=True)
     #     gameMeanEmbeddings[game] = meanEmbedding
 
     return referenceEmbeddings, gameMeanEmbeddings
-
-def buildClipEmbeddings(framePaths):
-    embeddings = []
-
-    for frame in framePaths:
-        emb = getImgEmbeddings(frame)
-
-        if emb is None:
-            print(f"Failed embedding: {frame}")
-            continue
-
-        embeddings.append(emb)
-
-    if len(embeddings) == 0:
-        return None
-    
-    clipEmbeddings = torch.mean(
-        torch.stack(embeddings),
-        dim = 0
-    )
-
-    clipEmbeddings /= clipEmbeddings.norm(
-        dim = -1,
-        keepdim=True
-    )
-
-    return clipEmbeddings
 
 def cacheEmbeddings(embeddings):
     # print(embeddings)
